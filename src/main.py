@@ -2,10 +2,10 @@ import asyncio
 import logging
 import uvicorn
 
-from .config import settings
-from .scheduler import start_scheduler
-from .discord_bot import bot
-from .http_server import app
+from config import settings
+from scheduler import start_scheduler
+from discord_bot import bot
+from http_server import app
 
 async def start_services():
     # Initialize database (indexes, TTLs)

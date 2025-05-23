@@ -1,8 +1,8 @@
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from .ingestion.rss_worker import ingest_rss
-from .ingestion.twitter_worker import ingest_twitter
-from .processor.pipeline import generate_recaps
+from ingestion.rss_worker import ingest_rss
+from ingestion.twitter_worker import ingest_twitter
+from processor.pipeline import generate_recaps
 
 def start_scheduler():
     """

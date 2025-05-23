@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from .database import db
+from database import db
 from bson.objectid import ObjectId
 
 from .admin import router as admin_router

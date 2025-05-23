@@ -4,11 +4,11 @@ import sys
 from discord import Intents, Embed
 from discord.ext import commands
 
-from .config import settings
-from .community.summariser import handle_summarise
-from .community.moderation import moderate_message
+from config import settings
+from community.summariser import handle_summarise
+from community.moderation import moderate_message
 import openai
-from .database import db
+from database import db
 
 # Initialize bot with all intents
 intents = Intents.default()

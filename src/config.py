@@ -1,6 +1,9 @@
 import os
 import json
-from pydantic import BaseSettings, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
+load_dotenv()
 
 class Settings(BaseSettings):
     MONGO_URI: str = Field(..., env="MONGO_URI")
@@ -28,8 +31,16 @@ def _load_json_env(var_name, default):
     except json.JSONDecodeError:
         return default
 
-settings = Settings()
-# parse JSON fields
-settings.RSS_SOURCES = _load_json_env("RSS_SOURCES", [])
-settings.TWITTER_USERS = _load_json_env("TWITTER_USERS", [])
-settings.TAG_CHANNEL_MAP = _load_json_env("TAG_CHANNEL_MAP", {})
+settings = Settings(
+    MONGO_URI=os.getenv("MONGO_URI"),
+    BOT_TOKEN=os.getenv("BOT_TOKEN"),
+    BOT_SECRET=os.getenv("BOT_SECRET"),
+    OPENAI_KEY=os.getenv("OPENAI_KEY"),
+    SERVER_ID=os.getenv("SERVER_ID"),
+    TWITTER_BEARER_TOKEN=os.getenv("TWITTER_BEARER_TOKEN"),
+    MODMAIL_CHANNEL_ID=os.getenv("MODMAIL_CHANNEL_ID"),
+    TOX_THRESHOLD=float(os.getenv("TOX_THRESHOLD", 0.5) or 0.5),
+    RSS_SOURCES=_load_json_env("RSS_SOURCES", []),
+    TWITTER_USERS=_load_json_env("TWITTER_USERS", []),
+    TAG_CHANNEL_MAP=_load_json_env("TAG_CHANNEL_MAP", {}),
+)

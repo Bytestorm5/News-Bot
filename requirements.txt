@@ -13,3 +13,4 @@ torch
 transformers
 fastapi-admin
 jinja2
+pydantic-settings
