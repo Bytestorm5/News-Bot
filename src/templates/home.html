@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head><title>News Firehose</title></head>
+<body>
+  <h1>Latest Events</h1>
+  <ul>
+  {% for event in events %}
+    <li>
+      <a href="/event/{{ event._id }}">{{ event.title }}</a>
+      ({{ event.publishedAt.strftime("%Y-%m-%d %H:%M") }})
+    </li>
+  {% endfor %}
+  </ul>
+</body>
+</html>

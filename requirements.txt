@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+motor
+pydantic
+python-dotenv
+discord.py
+openai
+feedparser
+tweepy
+APScheduler
+detoxify
+torch
+transformers
+fastapi-admin
+jinja2

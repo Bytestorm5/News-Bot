@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head><title>Tag: {{ tag }}</title></head>
+<body>
+  <h1>Tag: {{ tag }}</h1>
+  <ul>
+  {% for event in events %}
+    <li><a href="/event/{{ event._id }}">{{ event.title }}</a></li>
+  {% endfor %}
+  </ul>
+  <a href="/">Home</a>
+</body>
+</html>
