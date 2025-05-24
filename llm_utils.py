@@ -11,6 +11,7 @@ No Google API, no MCP, no headless browser – everything is plain Python HTTP c
 
 from __future__ import annotations
 
+import datetime
 import json
 import os
 from typing import List, Dict
@@ -60,9 +61,14 @@ def open_url(url: str, max_chars: int = 4000) -> Dict[str, str]:
 
     The Markdown is truncated to *max_chars* characters to keep replies short.
     """
-    resp = requests.get(url, timeout=15)
-    if resp.status_code != 200:
-        return {"url": url, "markdown": f"Error {resp.status_code}: {resp.reason}"}
+    try:
+        resp = requests.get(url, timeout=15)
+        resp.raise_for_status()
+    except Exception as e:
+        if resp and resp.status_code != 200:
+            return {"url": url, "markdown": f"Error {resp.status_code}: {resp.reason}"}
+        else:
+            return {"url": url, "markdown": f"Error: {str(e)}"}
     md = html2md.handle(resp.text)
     if len(md) > max_chars:
         md = md[: max_chars] + " …"
@@ -107,7 +113,7 @@ tools = [
                     "max_chars": {
                         "type": "integer",
                         "description": "truncate Markdown to this many characters",
-                        "default": 4000,
+                        "default": 40000,
                     },
                 },
                 "required": ["url"],
@@ -127,8 +133,11 @@ FUNC_REGISTRY = {
 # ---------------------------------------------------------------------------
 
 SYSTEM_PROMPT = (
-    "You are an expert research assistant. Reason step‑by‑step. "
-    "Use the provided tools whenever helpful."
+    "You are an expert news analyst. Reason step‑by‑step. "
+    "Use the provided tools whenever helpful. Make sure to pull recent & up-to-date information. "
+    "Cite sources and consider their reliability and biases (both financial and political)."
+    "Return all results in Markdown format, in English- regardless of the source language. "
+    f"The current date is {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}. "
 )
 
 messages: List[Dict[str, str]] = [
