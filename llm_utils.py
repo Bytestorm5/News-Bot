@@ -55,13 +55,14 @@ def search_web(query: str, num_results: int = 5) -> List[Dict[str, str]]:
     return results
 
 
-def open_url_as_markdown(url: str, max_chars: int = 4000) -> Dict[str, str]:
+def open_url(url: str, max_chars: int = 4000) -> Dict[str, str]:
     """Download a web page and return its body converted to Markdown.
 
     The Markdown is truncated to *max_chars* characters to keep replies short.
     """
     resp = requests.get(url, timeout=15)
-    resp.raise_for_status()
+    if resp.status_code != 200:
+        return {"url": url, "markdown": f"Error {resp.status_code}: {resp.reason}"}
     md = html2md.handle(resp.text)
     if len(md) > max_chars:
         md = md[: max_chars] + " …"
@@ -75,6 +76,7 @@ def open_url_as_markdown(url: str, max_chars: int = 4000) -> Dict[str, str]:
 tools = [
     {
         "type": "function",
+        "name": "search_web",
         "function": {
             "name": "search_web",
             "description": "Run a web search and get top results.",
@@ -94,8 +96,9 @@ tools = [
     },
     {
         "type": "function",
+        "name": "open_url",
         "function": {
-            "name": "open_url_as_markdown",
+            "name": "open_url",
             "description": "Download a web page and return its body converted to Markdown.",
             "parameters": {
                 "type": "object",
@@ -112,11 +115,10 @@ tools = [
         },
     },
 ]
-
 # Map from function name to the actual Python callable.
 FUNC_REGISTRY = {
     "search_web": search_web,
-    "open_url_as_markdown": open_url_as_markdown,
+    "open_url": open_url,
 }
 
 
@@ -133,50 +135,65 @@ messages: List[Dict[str, str]] = [
     {"role": "system", "content": SYSTEM_PROMPT}
 ]
 
-def chat(user_input: str, model: str = "gpt-4o-mini") -> str:
-    """Send *user_input* to the model, handling function calls until we get an answer."""
-
+def chat(user_input: str, model: str = "o4-mini") -> str:
     messages.append({"role": "user", "content": user_input})
 
     while True:
-        # response = openai.ChatCompletion.create(
-        #     model=model,
-        #     messages=messages,
-        #     tools=tools,
-        #     temperature=0.3,
-        # ).choices[0].message
-        
         response = openai.chat.completions.create(
             model=model,
             messages=messages,
-            functions=tools,
-            function_call="auto",
-            temperature=0.3,
+            tools=tools,
+            tool_choice="auto",
+            temperature=1,
         ).choices[0].message
 
-        # If the model decides to use a tool, execute it and let the model continue.
-        if response.get("tool_calls"):
-            for call in response.tool_calls:
-                func_name = call.function.name
-                args = json.loads(call.function.arguments or "{}")
+        # ------------------------------------------------------------------
+        # 1) Did the model ask to call one or more tools?
+        # ------------------------------------------------------------------
+        if response.tool_calls:
+            # Record the assistant’s tool-request turn exactly once
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments,
+                            },
+                        }
+                        for tc in response.tool_calls
+                    ],
+                }
+            )
+
+            # Run every requested tool
+            for tc in response.tool_calls:
+                func_name = tc.function.name
+                args = json.loads(tc.function.arguments or "{}")
                 result = FUNC_REGISTRY[func_name](**args)
 
-                # Feed the tool result back to the conversation
+                # Feed the result back with the correct tool_call_id
                 messages.append(
                     {
                         "role": "tool",
-                        "tool_call_id": call.id,
-                        "name": func_name,
-                        "content": json.dumps(result),
+                        "tool_call_id": tc.id,
+                        "content": json.dumps(result, ensure_ascii=False),
                     }
                 )
-            # Continue the loop – model will see the tool outputs next iteration
+                print(tc.id, func_name, args, result)
+
+            # Loop so the model can see the new tool messages
             continue
 
-        # Otherwise we have the final model answer.
+        # ------------------------------------------------------------------
+        # 2) Normal answer – we’re done
+        # ------------------------------------------------------------------
         messages.append(response)
         return response.content
-
 
 # ---------------------------------------------------------------------------
 #  SAMPLE EXECUTION (python demo_tools_chat_duckduckgo.py "query ...")
@@ -185,10 +202,11 @@ def chat(user_input: str, model: str = "gpt-4o-mini") -> str:
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) < 2:
-        print("Usage: python demo_tools_chat_duckduckgo.py \"Your question here\"")
-        sys.exit(0)
-
-    answer = chat(" ".join(sys.argv[1:]))
+    # if len(sys.argv) < 2:
+    #     print("Usage: python demo_tools_chat_duckduckgo.py \"Your question here\"")
+    #     sys.exit(0)
+    
+    
+    answer = chat("What is today's news?") #chat(" ".join(sys.argv[1:]))
     print("\n===== ANSWER =====\n")
     print(answer)
