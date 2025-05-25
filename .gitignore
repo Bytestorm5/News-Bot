@@ -2,3 +2,4 @@ ref/
 venv/
 *__pycache__/
 .env
+/chats

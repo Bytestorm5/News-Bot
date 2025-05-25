@@ -34,7 +34,7 @@ async def fetch_and_store_news():
     collection.insert_one(news_item)
     print("Fetched and stored news.")
 
-since = datetime.now(timezone.utc)
+since = datetime.now(timezone.utc) - timedelta(days=1)
 
 async def post_news():
     global since
@@ -43,22 +43,34 @@ async def post_news():
     if channel:
         # Find news from the last cycle (e.g., last 2 minutes)
         
-        new_items: list[ingestion.NewsItem] = [ingestion.NewsItem(**item) for item in list(collection.find({"ingest_timestamp": {"$gte": since}}))]
+        new_items: list[ingestion.MongoNewsItem] = [ingestion.MongoNewsItem(_id=item['_id'], news_item=ingestion.NewsItem(**item['news_item']), summary=item['summary'], tid=item['tid']) for item in list(collection.find({}))]
         since = datetime.now(timezone.utc)  # Update the since variable for the next cycle
         for item in new_items:
-            await channel.send(f"# [{item.title}](<{item.url}>)\n{item.description}\n```Categories: {','.join(item.categories)}\nPublished at: {item.publish_timestamp.strftime('%Y-%m-%d %H:%M:%S')}\nSource: {item.source}```")
+            message = f"# [{item.news_item.title}](<{item.news_item.url}>)\n{item.news_item.description}\n\n{item.summary}```Categories: {','.join(item.news_item.categories)}\nPublished at: {item.news_item.publish_timestamp.strftime('%Y-%m-%d %H:%M:%S')}\nSource: {item.news_item.source}\nEvent ID: {item._id}```"
+            if len(message) < 2000:
+                await channel.send(message)
+            else:
+                chunk = ""
+                for line in message.split('\n'):
+                    if len(chunk) + len(line + '\n') < 2000:
+                        chunk += line + '\n'
+                    else:
+                        await channel.send(chunk)
+                        chunk = line + '\n'
+                    await channel.send(chunk)  # Send the last chunk if any
         print("Posted news to channel.")
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name} ({bot.user.id})')
+    await post_news()
     # Schedule jobs only once when bot is ready
     for k, v in ingestion.SCHEDULER_INTERVALS.items():
         if k == "BOT_POLL":
-            scheduler.add_job(post_news, 'interval', seconds=v['interval'], next_run_time=datetime.now() + timedelta(minutes=2))
+            scheduler.add_job(post_news, 'interval', seconds=v['interval'], next_run_time=datetime.now())
         else:
-            scheduler.add_job(v['fn'], 'interval', seconds=v['interval'], next_run_time=datetime.now() + timedelta(minutes=1))
-        
+            #scheduler.add_job(v['fn'], 'interval', seconds=v['interval'], next_run_time=datetime.now())
+            pass
     scheduler.start()
 
 if __name__ == "__main__":

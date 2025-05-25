@@ -7,6 +7,8 @@ from dataclasses import dataclass
 
 import db
 
+import llm_utils
+
 @dataclass
 class NewsItem:
     _id: str
@@ -32,9 +34,41 @@ class NewsItem:
             "source": self.source
         }
 
+@dataclass
+class MongoNewsItem:
+    _id: str
+    news_item: NewsItem
+    summary: str
+    tid: str
+    
+    def to_dict(self):
+        return {
+            "_id": self._id,
+            "news_item": self.news_item.to_dict(),
+            "summary": self.summary,
+            "tid": self.tid
+        }
+
+def process_news_item(item: NewsItem):
+    prompt = (
+        "Summarize the event described in the linked article. Search for other articles talking about this event to add more context.:\n\n"
+        f"Title: {item.title}\n"
+        f"Description: {item.description}\n"
+        f"URL: {item.url}\n"
+        f"Published at: {item.publish_timestamp.isoformat()}\n"
+    )
+    response, tid = llm_utils.chat(prompt, save=True, use_tools=True)
+    
+    processed_item = MongoNewsItem(
+        _id=item._id,
+        news_item=item,
+        summary=response.content,
+        tid=tid
+    )
+    db.db["news_items"].replace_one({"_id": processed_item._id}, processed_item.to_dict(), upsert=True)
 
 DAILY_LIMITS = {
-    'thenewsapi': 100/4,
+    'thenewsapi': 100,
 }
 
 async def ingest_thenewsapi():
@@ -60,6 +94,7 @@ async def ingest_thenewsapi():
     interval_cap = 4
     
     def ingest_data(data):
+        print(f"Processing {len(data['data'])} items")
         for item in data['data']:
             news_item = NewsItem(
                 _id=item['uuid'],
@@ -72,7 +107,7 @@ async def ingest_thenewsapi():
                 categories=item.get('categories', []),
                 source=item['source']
             )
-            db.db["news_items"].replace_one({"_id": news_item._id}, news_item.to_dict(), upsert=True)
+            process_news_item(news_item)
         
     recent_data = initial_data
     ingest_data(recent_data)
