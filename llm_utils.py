@@ -164,8 +164,15 @@ tools = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "search phrase"},
-                    "num_results": {"type": "integer", "description": "how many results (1-10)", "default": 5},
+                    "query": {
+                        "type": "string",
+                        "description": "search phrase"
+                    },
+                    "num_results": {
+                        "type": "integer",
+                        "description": "how many results (1-10)",
+                        "default": 5
+                    },
                 },
                 "required": ["query"],
             },
@@ -181,61 +188,83 @@ tools = [
                 "type": "object",
                 "properties": {
                     "url": {"type": "string"},
-                    "max_chars": {"type": "integer", "description": "truncate Markdown to this many characters", "default": 4000},
+                    "max_chars": {
+                        "type": "integer",
+                        "description": "truncate Markdown to this many characters",
+                        "default": 4000
+                    },
                 },
                 "required": ["url"],
             },
         },
     },
     {
-    "type": "function",
-    "name": "schedule_followup_offset",
-    "description": "Schedule a follow‐up message offset from now by a given number of days, weeks, and/or months. Use this to follow up on timeframes discussed on the current article, when relevant. (e.g. \"X will be implemented in 90 days\")",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "prompt": {
-          "type": "string",
-          "description": "The follow‐up task to schedule. The task should be explained clearly and independently of existing chat context."
+        "type": "function",
+        "name": "schedule_followup_offset",
+        "function": {
+            "name": "schedule_followup_offset",
+            "description": (
+                "Schedule a follow-up message offset from now by a given number "
+                "of days, weeks, and/or months."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "description": "The follow-up task to schedule."
+                    },
+                    "days": {
+                        "type": "integer",
+                        "description": "How many days from now to schedule."
+                    },
+                    "weeks": {
+                        "type": "integer",
+                        "description": "How many weeks from now to schedule."
+                    },
+                    "months": {
+                        "type": "integer",
+                        "description": "How many 30-day blocks from now to schedule."
+                    },
+                },
+                "required": ["prompt"],
+            },
         },
-        "days": {
-          "type": "integer",
-          "description": "How many days from now to schedule."
+    },
+    {
+        "type": "function",
+        "name": "schedule_followup_at",
+        "function": {
+            "name": "schedule_followup_at",
+            "description": (
+                "Schedule a follow-up message at the specified ISO 8601 datetime."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "prompt": {
+                        "type": "string",
+                        "description": "The follow-up task to schedule."
+                    },
+                    "datetime_str": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": (
+                            "Exact ISO 8601 datetime, e.g. '2025-06-01T15:30:00'."
+                        )
+                    },
+                },
+                "required": ["prompt", "datetime_str"],
+            },
         },
-        "weeks": {
-          "type": "integer",
-          "description": "How many weeks from now to schedule."
-        },
-        "months": {
-          "type": "integer",
-          "description": "How many 30‐day blocks from now to schedule."
-        }
-      },
-      "required": ["prompt"]
-    }
-  },
-  {
-    "type": "function",
-    "name": "schedule_followup_at",
-    "description": "Schedule a follow‐up message at the specified ISO 8601 datetime. Use this to follow up on timeframes discussed on the current article, when relevant. (e.g. \"X will be complete by October 22, 2026\")",
-    "parameters": {
-      "type": "object",
-      "properties": {
-        "prompt": {
-          "type": "string",
-          "description": "The follow‐up task to schedule. The task should be explained clearly and independently of existing chat context."
-        },
-        "datetime_str": {
-          "type": "string",
-          "format": "date-time",
-          "description": "Exact ISO 8601 datetime, e.g. '2025-06-01T15:30:00'."
-        }
-      },
-      "required": ["prompt", "datetime_str"]
-    }
-  },
+    },
 ]
-FUNC_REGISTRY = {"search_web": search_web, "open_url": open_url}
+FUNC_REGISTRY = {
+    "search_web": search_web, 
+    "open_url": open_url, 
+    'schedule_followup_offset': schedule_followup_offset,
+    'schedule_followup_at': schedule_followup_at
+}
 
 # ---------------------------------------------------------------------------
 #  SYSTEM PROMPT
