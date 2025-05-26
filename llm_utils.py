@@ -18,6 +18,8 @@ from duckduckgo_search.exceptions import (
     RatelimitException,
     TimeoutException,
 )
+from dataclasses import dataclass
+import db
 
 # ---------------------------------------------------------------------------
 #  ENV & GLOBAL CLIENT SETUP
@@ -31,6 +33,17 @@ html2md.ignore_links = False  # Keep hyperlinks
 
 # Ensure chats directory exists
 os.makedirs("chats", exist_ok=True)
+
+@dataclass
+class Followup:
+    prompt: str
+    timestamp: datetime.datetime
+    
+    def to_dict(self):
+        return {
+            "prompt": self.prompt,
+            "timestamp": self.timestamp
+        }
 
 # ---------------------------------------------------------------------------
 #  TOOL IMPLEMENTATIONS
@@ -83,6 +96,60 @@ def open_url(url: str, max_chars: int = 4000) -> Dict[str, str]:
         md = md[:max_chars] + " …"
     return {"url": url, "markdown": md}
 
+def schedule_followup_offset(
+    prompt: str,
+    days: int = 0,
+    weeks: int = 0,
+    months: int = 0
+) -> Dict:
+    """
+    Schedule a follow‐up message with an offset from the current date.
+
+    :param prompt: The follow‐up prompt to use.
+    :param days: Number of days to offset.
+    :param weeks: Number of weeks to offset.
+    :param months: Number of months to offset.
+    """
+    try:
+        now = datetime.datetime.now()
+        followup_date = now + datetime.timedelta(days=days, weeks=weeks) \
+                           + datetime.timedelta(days=30 * months)
+        db.db["follow_ups"].insert_one(
+            Followup(prompt=prompt, timestamp=followup_date).to_dict()
+        )
+        return {"success": True,
+                "message": f"Scheduled follow‐up on {followup_date.isoformat()}"}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
+def schedule_followup_at(
+    prompt: str,
+    datetime_str: str
+) -> Dict:
+    """
+    Schedule a follow‐up message at an explicit ISO 8601 datetime.
+
+    :param prompt: The follow‐up prompt to use.
+    :param datetime_str: An ISO‐8601 timestamp, e.g. '2025-06-01T15:30:00'.
+    """
+    try:
+        # Parse and validate
+        followup_date = datetime.datetime.fromisoformat(datetime_str)
+        db.db["follow_ups"].insert_one(
+            Followup(prompt=prompt, timestamp=followup_date).to_dict()
+        )
+        return {"success": True,
+                "message": f"Scheduled follow‐up on {followup_date.isoformat()}"}
+    except ValueError:
+        return {
+            "success": False,
+            "message": ("Invalid datetime format. "
+                        "Please pass an ISO 8601 string, e.g. '2025-06-01T15:30:00'")
+        }
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
 # ---------------------------------------------------------------------------
 #  OPENAI FUNCTION-CALLING SCHEMAS (TOOLS)
 # ---------------------------------------------------------------------------
@@ -120,6 +187,53 @@ tools = [
             },
         },
     },
+    {
+    "type": "function",
+    "name": "schedule_followup_offset",
+    "description": "Schedule a follow‐up message offset from now by a given number of days, weeks, and/or months. Use this to follow up on timeframes discussed on the current article, when relevant. (e.g. \"X will be implemented in 90 days\")",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "The follow‐up task to schedule. The task should be explained clearly and independently of existing chat context."
+        },
+        "days": {
+          "type": "integer",
+          "description": "How many days from now to schedule."
+        },
+        "weeks": {
+          "type": "integer",
+          "description": "How many weeks from now to schedule."
+        },
+        "months": {
+          "type": "integer",
+          "description": "How many 30‐day blocks from now to schedule."
+        }
+      },
+      "required": ["prompt"]
+    }
+  },
+  {
+    "type": "function",
+    "name": "schedule_followup_at",
+    "description": "Schedule a follow‐up message at the specified ISO 8601 datetime. Use this to follow up on timeframes discussed on the current article, when relevant. (e.g. \"X will be complete by October 22, 2026\")",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "description": "The follow‐up task to schedule. The task should be explained clearly and independently of existing chat context."
+        },
+        "datetime_str": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Exact ISO 8601 datetime, e.g. '2025-06-01T15:30:00'."
+        }
+      },
+      "required": ["prompt", "datetime_str"]
+    }
+  },
 ]
 FUNC_REGISTRY = {"search_web": search_web, "open_url": open_url}
 
