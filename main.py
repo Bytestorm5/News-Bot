@@ -47,9 +47,7 @@ async def post_news():
         scheds: list[llm_utils.Followup] = [llm_utils.Followup(prompt=item["prompt"], timestamp=item["timestamp"]) for item in db.db['follow_ups'].find({ "timestamp": { "$gt": since } })]
         for sched in scheds:
             msg, tid = llm_utils.chat(
-                user_input=f"This is a follow-up to a message scheduled for {sched.timestamp.strftime('%Y-%m-%d %H:%M:%S')} UTC. Please respond accordingly. What follows is the task description set at that time:\n {sched.prompt}",
-                save=True,
-                use_tools=True,
+                user_input=f"This is a follow-up to a message scheduled for {sched.timestamp.strftime('%Y-%m-%d %H:%M:%S')} UTC. Please respond accordingly. What follows is the task description set at that time:\n {sched.prompt}"
             )
             util.batch_send(channel, msg)
             db.db['follow_ups'].delete_one({"prompt": sched.prompt, "timestamp": sched.timestamp})
